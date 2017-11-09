@@ -1,0 +1,172 @@
+//
+//  PhotoManager.swift
+//  Touche-ios
+//
+//  Created by Ben LeBlond on 7/7/16.
+//  Copyright © 2017 127Thousand LLC. All rights reserved.
+//
+
+import Foundation
+
+import AWSS3
+import ImgixSwift
+
+class PhotoManager {
+    
+    static let sharedInstance = PhotoManager()
+    private init () {}
+    
+    let blurPro: UInt = 1000
+    
+    // MARK: - Methods
+    
+    // return signed photo url
+    
+    func getAvatarImageFor(uuid:String, size:Int? = nil, placeholderImage:UIImage? = nil, completion:(UIImage?) -> Void) {
+        
+        FirebasePeopleManager.sharedInstance.getProfilePic(uuid) { (picUuid) in
+            guard let puuid = picUuid else { completion(nil); return }
+            let imgURL = PhotoManager.sharedInstance.getPhotoURLFromName(puuid, userUuid: uuid)
+        
+            UIImageView().kf_setImageWithURL(
+                imgURL,
+                placeholderImage: placeholderImage,
+                completionHandler: { (image, error, cacheType, imageURL) in
+                    if let image = image {
+                        completion(image)
+                        return
+                    }
+                    
+                    completion(nil)
+                }
+            )
+        }
+    }
+    
+<<<<<<< HEAD
+    func getImageFromURL(imageURL:NSURL, completion:(UIImage?) -> Void) {
+        UIImageView().kf_setImageWithURL(imageURL) { (image, error, cacheType, imageURL) in
+            guard let image = image else { completion(nil); return }
+            completion(image)
+        }
+    }
+    
+    func getPhotoURLFromName(picUuid: String, userUuid: String, size: Int = 300, centerFace: Bool = true) -> NSURL {
+=======
+    func getPhotoURLFromName(picUuid: String, userUuid: String, size: Int? = 300, centerFace: Bool? = true, flip: Bool? = true) -> NSURL {
+>>>>>>> 39569a9eee4d374e53719432d07d0ae4cbc1282e
+        let client = ImgixClient(host: ToucheApp.imgixHost, secureUrlToken: ToucheApp.imgixToken)
+        //let picSize = size == 0 ? 300: size!
+        
+        var params: [String:String]
+        params = ["auto": "enhance", "h": "\(size)", "w": "\(size)"]
+
+        if centerFace == true {
+            params["crop"] = "faces"
+            params["fit"] = "facearea"
+            params["facepad"] = "2"
+        }
+        if flip == true {
+            params["flip"] = "h"
+        }
+        
+        let signedImageURL = client.buildUrl("\(userUuid + "/" + picUuid)", params: params)
+        return signedImageURL
+    }
+    
+    func getImageURLFrom(userUUID:String, picUUID:String) -> NSURL {
+        let client = ImgixClient(host: ToucheApp.imgixHost, secureUrlToken: ToucheApp.imgixToken)
+        let path = userUUID + "/" + picUUID
+        return client.buildUrl(path)
+    }
+    
+    func getImageFromName(picUuid:String, completion:(UIImage?) -> Void) {
+        let imgURL = getPhotoURLFromName(picUuid, userUuid: UserManager.sharedInstance.toucheUUID!)
+
+        UIImageView().kf_setImageWithURL(imgURL, placeholderImage: nil, optionsInfo: nil, progressBlock: nil, completionHandler: { (image, error, cacheType, imageURL) in
+            if let image = image {
+                completion(image)
+            }
+            else {
+                completion(nil)
+            }
+        })
+    }
+
+    func setImageView(imageView:UIImageView, withImageName picUuid:String) {
+        let imgURL = getPhotoURLFromName(picUuid, userUuid: UserManager.sharedInstance.toucheUUID!)
+
+        imageView.kf_setImageWithURL(imgURL, placeholderImage: UIImage(named: ToucheApp.Assets.defaultImageName), optionsInfo: nil, progressBlock: nil, completionHandler: { (image, error, cacheType, imageURL) in
+        })
+    }
+    
+    /*
+     * Try to upload a image to S3
+     * If the task success: 'completion' 1st param = true; 'completion' 2nd param = nil
+     * If task is cancelled or an error occur: 'completion' 1st param = false; 'completion' 2nd param = error message
+     */
+    func uploadImageToS3(image:UIImage, imageURL:String, completion:(Bool, String?) -> Void) {
+        guard let imageData = UIImageJPEGRepresentation(image, 0.5) else { return }
+        
+        let contentType = "image/jpeg"
+        let tempImage = NSTemporaryDirectory().stringByAppendingString("tempImage")
+        let tempImageURL = NSURL(fileURLWithPath: tempImage)
+        
+        imageData.writeToURL(tempImageURL, atomically: true)
+        
+        let uploadRequest = AWSS3TransferManagerUploadRequest()
+        uploadRequest.bucket = ToucheApp.amazonBucket
+        uploadRequest.contentType = contentType
+        uploadRequest.key = imageURL        // Path where save the image in the bucket
+        uploadRequest.body = tempImageURL   // Image to upload to the bucket
+        
+        let task = AWSS3TransferManager.defaultS3TransferManager().upload(uploadRequest)
+        task.continueWithBlock { (task) -> AnyObject? in
+            if task.error != nil {
+                let errorMsg = task.error?.localizedDescription
+                print("Error: uploadToS3 - \(errorMsg)")
+                completion(false, errorMsg)
+                return nil
+            }
+            
+            if task.cancelled {
+                let errorMsg = "Task was cancelled"
+                print("Error: uploadToS3 - \(errorMsg)")
+                completion(false,errorMsg)
+                return nil
+            }
+            
+            if task.result != nil {
+                completion(true, nil)
+                return nil
+            }
+            
+            completion(false, nil)
+            return nil
+        }
+    }
+
+    func downloadImageAsyncFromURL(imageURL:NSURL, completion:(Bool, UIImage?) -> Void) {
+        getDataFromURL(imageURL) { (imageData) in
+            guard let imageData = imageData else { completion(false, nil); return }
+            guard let image = UIImage(data: imageData) else { completion(false, nil); return }
+            completion(true, image)
+        }
+    }
+    
+    private func getDataFromURL(url:NSURL, completion:(NSData?) -> Void) {
+        NSURLSession.sharedSession().dataTaskWithURL(url) { (data, response, error) in
+            if error != nil {
+                completion(nil)
+                return
+            }
+            
+            if data != nil {
+                completion(data!)
+                return
+            }
+            
+            completion(nil)
+            }.resume()
+    }
+}

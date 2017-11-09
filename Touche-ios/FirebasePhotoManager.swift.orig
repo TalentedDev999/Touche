@@ -1,0 +1,97 @@
+//
+//  FirebasePhotoManager.swift
+//  Touche-ios
+//
+//  Created by Ben Leblond on 9/20/16.
+//  Copyright © 2017 127Thousand LLC. All rights reserved.
+//
+
+import Foundation
+import Firebase
+
+class FirebasePhotoManager {
+    
+    // MARK: - Properties
+    
+    static let sharedInstance = FirebasePhotoManager()
+
+    private let picRef: FIRDatabaseReference
+
+    private let toucheUUID: String
+
+    struct Database {
+        
+        struct Nodes {
+            static let pic = "pic"
+        }
+        
+        struct Pic {
+            static let type = "type"
+            static let hash = "hash"
+            static let moderated = "moderated"
+            static let moderationDate = "moderationDate"
+            static let adult = "adult"
+        }
+    }
+    
+    private init() {
+        toucheUUID = UserManager.sharedInstance.toucheUUID!
+
+        picRef = FirebaseManager.sharedInstance.getDatabaseReference(Database.Nodes.pic)
+    }
+    
+    // MARK: - Firebase Read
+    
+    func getPicsFromUser(userUUID:String, completion:(FIRDataSnapshot) -> Void) {
+        picRef.child(userUUID).observeSingleEventOfType(.Value, withBlock: { (snapshot) in
+            completion(snapshot)
+        })
+    }
+    
+    func alreadyExist(picUUID:String, userUUUID uuid:String, completion:(Bool, FIRDataSnapshot?) -> Void) {
+        let picUUIDRef = FirebaseManager.sharedInstance.getReference(picRef, childNames: uuid, picUUID)
+        picUUIDRef.observeSingleEventOfType(.Value, withBlock:  { (snapshot) in
+            print(snapshot)
+            if snapshot.exists() {
+                completion(true, snapshot)
+                return
+            }
+            
+            completion(false, nil)
+        })
+    }
+    
+    func addPicForUser(picUuid:String, uuid:String) {
+        let newPicRef = picRef.child(uuid).child(picUuid)
+        newPicRef.child(Database.Pic.date).setValue(FIRServerValue.timestamp())
+        newPicRef.child(Database.Pic.moderated).setValue(false)
+    }
+    
+    func addChatPic(picUUID:String, imageHash:String, forUserUUID uuid:String) {
+        let newChatPicRef = FirebaseManager.sharedInstance.getReference(picRef, childNames: uuid, picUUID)
+
+        let neweChatPicValue = [
+            Database.Pic.date : FIRServerValue.timestamp(),
+            Database.Pic.moderated : false,
+            Database.Pic.hash : imageHash,
+            Database.Pic.type : "chat"
+        ]
+        
+        FirebaseManager.sharedInstance.setValue(newChatPicRef, value: neweChatPicValue)
+    }
+
+    // MARK: - Firebase Observers
+    
+    func observePicAddedForUser(uuid:String, completion:(FIRDataSnapshot) -> Void) {
+        picRef.child(uuid).observeEventType(.ChildAdded, withBlock: { (snapshot) in
+            completion(snapshot)
+        })
+    }
+    
+    func observePicRemovedForUser(uuid:String, completion:(FIRDataSnapshot) -> Void) {
+        picRef.child(uuid).observeEventType(.ChildRemoved, withBlock: { (snapshot) in
+            completion(snapshot)
+        })
+    }
+    
+}

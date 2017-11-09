@@ -1,0 +1,18 @@
+/* 
+  Localizable.strings
+  Touche-ios
+
+  Created by Lucas Maris on 7/26/16.
+  Copyright © 2017 127Thousand LLC. All rights reserved.
+*/
+
+
+// Password Lock
+"SMILE_REASON" = "Are you device owner?";
+"SMILE_INPUT_FAILED" = "%ld Failed Passcode Attempt. Try again.";
+"SMILE_INPUT_DESCRIPTION" = "Enter %ld digit passcode";
+"SMILE_INPUT_NOT_MATCH" = "Passcode not match. Try again.";
+"SMILE_INPUT_RE-ENTER" = "Re-enter your %ld digit Passcode";
+"SMILE_INPUT_TOUCHID_TITLE" = "Enter Passcode";
+"SMILE_INPUT_ONCE_TITLE" = "Turn off Passcode";
+"SMILE_INPUT_TWICE_TITLE" = "Set Passcode";
